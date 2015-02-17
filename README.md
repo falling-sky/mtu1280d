@@ -28,12 +28,12 @@ guest% sudo ip6tables-save | grep NFQ
 REQUIREMENTS
 ------------
 
-RedHat:
- * Please send me confirmed required packages. -- jfesler@gigo.com
- * libnetfilter queue "developer" package
+RedHat/Centos/Fedora:
+ * libnetfilter_queue-devel
+ * gcc, make
  * ip6tables - and a way to automatically load ip6tables on startup
 
-Ubuntu:
+Ubuntu/Debian:
  * build-essential 
  * libnetfilter-queue-dev 
  * ip6tables - and a way to automatically load ip6tables on startup
