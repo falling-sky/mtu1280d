@@ -19,7 +19,7 @@ install: mtu1280d
 upstart: install
 	@echo Checking to see if your system uses upstart 
 	test -d /etc/init/
-	/usr/bin/install -c upstart/mtu1280d /etc/init/
+	/usr/bin/install -c upstart/mtu1280d.conf /etc/init/
 	@echo "Reminder - start the daemon or reboot; then update your ip6tables."
 	@echo "See the README.md file."
 
@@ -64,7 +64,7 @@ remove: pre-remove force-remove
 dist-prep::
 	rm -fr work
 	mkdir -p work
-	rsync -av . work --exclude work --exclude "*~" --exclude /mtu1280d --exclude ".git"
+	rsync -av . work --exclude work --exclude "*~" --exclude /mtu1280d --exclude ".git" --exclude "fsky*tgz"
 
 dist-test: dist-prep
 	../dist_support/make-dist.pl --stage work --base mtu1280d --branch test
