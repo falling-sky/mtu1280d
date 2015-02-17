@@ -25,6 +25,21 @@ guest% sudo ip6tables-save | grep NFQ
 -A INPUT -d 2001:470:1f04:d63::2/128 -m length --length 1281:65535 -j -NFQUEUE --queue-num 1280
 ```
 
+REQUIREMENTS
+------------
+
+RedHat:
+ * Please send me confirmed required packages. -- jfesler@gigo.com
+ * libnetfilter queue "developer" package
+ * ip6tables
+
+Ubuntu:
+ * build-essential 
+ * libnetfilter-queue-dev 
+ * ip6tables
+
+
+
 
 LICENSE
 -------

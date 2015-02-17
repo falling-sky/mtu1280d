@@ -1,11 +1,20 @@
 // Thanks to Austin Marton
 // https://austinmarton.wordpress.com/2011/09/14/sending-raw-ethernet-packets-from-a-specific-interface-in-c-on-linux/
+// csum() is borrowed from Austin; and csum_3() is derived from csum().
 
 // Portions of this file derived from libnetfilter_queue-1.0.2/utils/nfqnl_test.c
-// Copyright by Harald Welte
+// (C) 2005 by Harald Welte <laforge@gnumonks.org>
+// Particularly the bits that interface with netfilter (and the trigger for this being GPLv2 instead of MIT license)
 
-#include <stdlib.h>
+// Code not otherwise borrowed is 
+// (C) 2015 by Jason Fesler <jfesler@gigo.com>
+// Principally: anything to do with ICMPv6 responses
+// The uglier it looks, the more likely it is mine.
+
+#include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <assert.h>
 #include <netinet/in.h>
@@ -378,16 +387,33 @@ int main(int argc, char **argv)
         struct nfnl_handle *nh;
         int fd;
         int rv;
-        unsigned int queue;
+        unsigned int queue = 1280; // default value
         char *interface;
         char buf[4096] __attribute__ ((aligned));
 
-  if (argc != 2) {
-    fprintf(stdout,"usage: a.out netgroup_number\n");
-    exit(1);
-  }
-  queue = strtol(argv[1],NULL,10);
-  
+// Getopt        
+int c;
+int opterr = 0;
+while ((c = getopt (argc, argv, "q:")) != -1)
+  switch (c)
+    {
+    case 'q':
+      queue = strtol(optarg,NULL,10);
+      break;
+    case '?':
+      if (optopt == 'q')
+	fprintf (stderr, "Option -%c requires an argument.\n", optopt);
+      else if (isprint (optopt))
+	fprintf (stderr, "Unknown option `-%c'.\n", optopt);
+      else
+	fprintf (stderr, "Unknown option character `\\x%x'.\n", optopt);
+      return 1;
+    default:
+      abort ();
+    }
+
+
+                                                                                                                                                                                                               
 
         printf("opening library handle\n");
         h = nfq_open();
@@ -399,6 +425,9 @@ int main(int argc, char **argv)
         printf("unbinding existing nf_queue handler for AF_INET6 (if any)\n");
         if (nfq_unbind_pf(h, AF_INET6) < 0) {
                 fprintf(stdout, "error during nfq_unbind_pf()\n");
+     if (getuid() != 0) {
+       fprintf(stderr,"%s: must be ran as root\n",argv[0]);
+     }
                 exit(1);
         }
 
