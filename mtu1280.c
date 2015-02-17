@@ -408,7 +408,6 @@ cb (struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 }
 
 
-
 int
 main (int argc, char **argv)
 {
@@ -417,16 +416,22 @@ main (int argc, char **argv)
   struct nfnl_handle *nh;
   int fd;
   int rv;
-  unsigned int queue = 1280;	// default value
+  unsigned int queue = 1280;	// -q 
+  unsigned int do_fork = 0;	// -d 
   char *interface;
   char buf[4096] __attribute__ ((aligned));
 
 // Getopt        
   int c;
   int opterr = 0;
-  while ((c = getopt (argc, argv, "q:")) != -1)
+  while ((c = getopt (argc, argv, "dq:")) != -1)
     switch (c)
       {
+      case 'd':
+	fprintf (stderr, "setting\n");
+	do_fork = 1;
+	fprintf (stderr, "set!\n");
+	break;
       case 'q':
 	queue = strtol (optarg, NULL, 10);
 	break;
@@ -479,12 +484,21 @@ main (int argc, char **argv)
       exit (1);
     }
 
+
   printf ("setting copy_packet mode\n");
   if (nfq_set_mode (qh, NFQNL_COPY_PACKET, 0xffff) < 0)
     {
       fprintf (stdout, "can't set packet_copy mode\n");
       exit (1);
     }
+
+
+  if (do_fork)
+    {
+      fprintf (stdout, "forking to background\n");
+      daemon (0, 0);
+    }
+
 
   fd = nfq_fd (h);
 

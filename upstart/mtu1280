@@ -1,0 +1,18 @@
+# ssh - OpenBSD Secure Shell server
+#
+# The OpenSSH server provides secure shell access to the system.
+
+description	"Synthetic ICMPv6 Packet Too Big response"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+respawn limit 10 5
+umask 022
+
+#expect stop
+
+console none
+
+exec /usr/sbin/mtu1280 -q 1280
