@@ -20,15 +20,35 @@ upstart: install
 	@echo Checking to see if your system uses upstart 
 	test -d /etc/init/
 	/usr/bin/install -c upstart/mtu1280d /etc/init/
+	@echo "Reminder - start the daemon or reboot; then update your ip6tables."
+	@echo "See the README.md file."
 
 init.d: install
 	/usr/bin/install -c init.d/mtu1280d /etc/init.d/
 	update-rc.d mtu1280d defaults
 	update-rc.d mtu1280d enable
-remove:
+	@echo "Reminder - start the daemon or reboot; then update your ip6tables."
+	@echo "See the README.md file."
+
+
+################################################################
+# Removing? Check ip6tables first                              #
+################################################################
+
+pre-remove:
+	@echo Checking ip6tables to make sure you no longer use NFQUEUE
+	@ip6tables-save | grep NFQUEUE  && echo "NFQUEUE rulee still active in ip6tables"  || true
+	@ip6tables-save | grep "NFQUEUE" >/dev/null ;  [ $$? -eq 1 ]
+	@echo safe to remove
+	
+force-remove:
 	@echo "Removing any previous installation (including startup scripts) of mtu1280d"
 	rm -fr /usr/sbin/mtu1280d /etc/init/mtu1280d /etc/init.d/mtu1280d
 	update-rc.d mtu1280d remove
+
+
+remove: pre-remove force-remove
+
 
 
 
