@@ -15,4 +15,4 @@ umask 022
 
 console none
 
-exec /usr/sbin/mtu1280 -q 1280
+exec /usr/sbin/mtu1280d -q 1280

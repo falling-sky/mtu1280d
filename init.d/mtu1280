@@ -1,11 +1,11 @@
 #! /bin/sh
 ### BEGIN INIT INFO
-# Provides:          mtu1280
+# Provides:          mtu1280d
 # Required-Start:    $network $syslog
 # Required-Stop:     $network $syslog
 # Default-Start:     2 3 4 5
 # Default-Stop:      0 1 6
-# Short-Description: mtu1280 Synthetic ICMPv6 Packet Too Big response
+# Short-Description: mtu1280d Synthetic ICMPv6 Packet Too Big response
 # Description:       This file should be used to construct scripts to be
 #                    placed in /etc/init.d.
 ### END INIT INFO
@@ -17,7 +17,7 @@
 # PATH should only include /usr/* if it runs after the mountnfs.sh script
 PATH=/sbin:/usr/sbin:/bin:/usr/bin
 DESC="Synthetic ICMPv6 Packet Too Big response"
-NAME=mtu1280
+NAME=mtu1280d
 DAEMON=/usr/sbin/$NAME
 DAEMON_ARGS="-d -q 1280"
 PIDFILE=/var/run/$NAME.pid
