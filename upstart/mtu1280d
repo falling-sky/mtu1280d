@@ -1,6 +1,5 @@
-# ssh - OpenBSD Secure Shell server
+# mtu1280d - Synthetic ICMPv6 Packet Too Big response
 #
-# The OpenSSH server provides secure shell access to the system.
 
 description	"Synthetic ICMPv6 Packet Too Big response"
 
