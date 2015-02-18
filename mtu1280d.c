@@ -39,6 +39,12 @@
 #define ETHER_CRC_SIZE 4
 #define ETHER_TOTAL_SIZE (MTU + ETHER_SIZE)
 
+
+unsigned int queue = 1280;	// -q 
+unsigned int do_fork = 0;	// -d
+unsigned int do_debug = 0;	// -g 
+
+
 typedef struct fullframe
 {
   u_int8_t ether_frame[ETHER_SIZE];
@@ -78,7 +84,10 @@ macaddr_for_interface (int i)
 
       if (interface)
 	{
-	  printf ("Looked up %d, found %s ", i, interface);
+	  if (do_debug)
+	    {
+	      printf ("Looked up %d, found %s ", i, interface);
+	    }
 
 	  // Use ioctl() to look up interface name and get its MAC address.   
 	  memset (&ifr, 0, sizeof (ifr));
@@ -93,9 +102,12 @@ macaddr_for_interface (int i)
 	}
 
     }
-  printf ("interface %d mac %02x:%02x:%02x:%02x:%02x:%02x",
-	  i, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4],
-	  buffer[5]);
+  if (do_debug)
+    {
+      printf ("interface %d mac %02x:%02x:%02x:%02x:%02x:%02x",
+	      i, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4],
+	      buffer[5]);
+    }
 
   return buffer;
 }
@@ -105,6 +117,12 @@ void
 hexdump (char *s, uint8_t * p, int n)
 {
   int i;
+
+  if (!do_debug)
+    {
+      return;
+    }
+
   printf ("\nHEXDUMP: %s\n", s);
   for (i = 0; i < n; i++)
     {
@@ -165,7 +183,6 @@ static u_int32_t
 block_pkt (struct nfq_data *tb)
 {
   int id = 0;
-  struct nfqnl_msg_packet_hdr *ph;
   struct nfqnl_msg_packet_hw *hwph;
   u_int32_t mark, ifi;
   int ret;
@@ -173,6 +190,7 @@ block_pkt (struct nfq_data *tb)
   int copy_len;
   unsigned char *data;
   uint16_t c;
+  static u_int8_t previous_macaddr[6] = { 0, 0, 0, 0, 0, 0 };
 
   // Where to address the raw packets - fill this in 
   // as we go
@@ -194,24 +212,15 @@ block_pkt (struct nfq_data *tb)
   // Final ether CRC
 
 
-  // Get the packet ID.  NEeded for netfilter_queue response.
-  fprintf (stdout, "TRACE: %s %i\n", __FILE__, __LINE__);
-  ph = nfq_get_msg_packet_hdr (tb);
-  if (ph)
-    {
-      id = ntohl (ph->packet_id);
-      printf ("hw_protocol=0x%04x hook=%u id=%u ",
-	      ntohs (ph->hw_protocol), ph->hook, id);
-    }
-
   // Get the data payload from netfilter_queue
-  fprintf (stdout, "TRACE: %s %i\n", __FILE__, __LINE__);
   ret = nfq_get_payload (tb, &data);
-  if (ret >= 0)
-    printf ("payload_len=%d ", ret);
   data_len = ret;
   copy_len = (data_len > PAYLOAD_SIZE) ? PAYLOAD_SIZE : data_len;
-  printf ("copy_len=%d ", copy_len);
+
+  if (do_debug)
+    {
+      printf ("payload_len=%d copy_len=%d ", data_len, copy_len);
+    }
 
 
 
@@ -223,16 +232,41 @@ block_pkt (struct nfq_data *tb)
     {
       int i, hlen = ntohs (hwph->hw_addrlen);
 
-      printf ("hw_src_addr=");
-      for (i = 0; i < hlen - 1; i++)
-	printf ("%02x:", hwph->hw_addr[i]);
-      printf ("%02x ", hwph->hw_addr[hlen - 1]);
+      if (do_debug)
+	{
+	  printf ("hw_src_addr=");
+	  for (i = 0; i < hlen - 1; i++)
+	    printf ("%02x:", hwph->hw_addr[i]);
+	  printf ("%02x ", hwph->hw_addr[hlen - 1]);
+	}
 
       // Ethernet frame destination
       memcpy (&buffer.ether_frame[0], hwph->hw_addr, 6);
       memcpy (socket_address.sll_addr, hwph->hw_addr, 6);
+      memcpy (previous_macaddr, hwph->hw_addr, 6);
       socket_address.sll_halen = ETH_ALEN;
     }
+  else
+    {
+      if (do_debug)
+	{
+	  printf ("hw_src_addr=missing ");
+	}
+      memcpy (&buffer.ether_frame[0], previous_macaddr, 6);
+      memcpy (socket_address.sll_addr, previous_macaddr, 6);
+      socket_address.sll_halen = ETH_ALEN;
+    }
+
+  // Early-ish accept if the packets are small
+  if ((data_len > 0) && (data_len <= 1280))
+    {
+      if (do_debug)
+	{
+	  printf ("Accepting!\n");
+	}
+      return 1280;  // iptables mark to keep the packet
+    }
+
 
   // TODO: Ethernet frame source
 
@@ -311,17 +345,21 @@ block_pkt (struct nfq_data *tb)
 
 
   // Device ID that the packet came from
-  fprintf (stdout, "TRACE: %s %i\n", __FILE__, __LINE__);
   ifi = nfq_get_indev (tb);
   if (ifi)
     {
-      printf ("indev=%u ", ifi);
+      if (do_debug)
+	{
+	  printf ("indev=%u ", ifi);
+	}
       socket_address.sll_ifindex = ifi;
       memcpy (&buffer.ether_frame[6], macaddr_for_interface (ifi), 6);
     }
 
-  fputc ('\n', stdout);
-  fprintf (stdout, "TRACE: %s %i\n", __FILE__, __LINE__);
+  if (do_debug)
+    {
+      fputc ('\n', stdout);
+    }
 
   int tx_len = ETHER_SIZE + IPV6HDR_SIZE + ICMP6_SIZE + copy_len;
   if (sendto
@@ -330,69 +368,7 @@ block_pkt (struct nfq_data *tb)
     printf ("Send failed\n");
 
 
-
-
-  return id;
-}
-
-
-
-/* returns packet id */
-static u_int32_t
-print_pkt (struct nfq_data *tb)
-{
-  int id = 0;
-  struct nfqnl_msg_packet_hdr *ph;
-  struct nfqnl_msg_packet_hw *hwph;
-  u_int32_t mark, ifi;
-  int ret;
-  unsigned char *data;
-
-  ph = nfq_get_msg_packet_hdr (tb);
-  if (ph)
-    {
-      id = ntohl (ph->packet_id);
-      printf ("hw_protocol=0x%04x hook=%u id=%u ",
-	      ntohs (ph->hw_protocol), ph->hook, id);
-    }
-
-  hwph = nfq_get_packet_hw (tb);
-  if (hwph)
-    {
-      int i, hlen = ntohs (hwph->hw_addrlen);
-
-      printf ("hw_src_addr=");
-      for (i = 0; i < hlen - 1; i++)
-	printf ("%02x:", hwph->hw_addr[i]);
-      printf ("%02x ", hwph->hw_addr[hlen - 1]);
-    }
-
-  mark = nfq_get_nfmark (tb);
-  if (mark)
-    printf ("mark=%u ", mark);
-
-  ifi = nfq_get_indev (tb);
-  if (ifi)
-    printf ("indev=%u ", ifi);
-
-  ifi = nfq_get_outdev (tb);
-  if (ifi)
-    printf ("outdev=%u ", ifi);
-  ifi = nfq_get_physindev (tb);
-  if (ifi)
-    printf ("physindev=%u ", ifi);
-
-  ifi = nfq_get_physoutdev (tb);
-  if (ifi)
-    printf ("physoutdev=%u ", ifi);
-
-  ret = nfq_get_payload (tb, &data);
-  if (ret >= 0)
-    printf ("payload_len=%d ", ret);
-
-  fputc ('\n', stdout);
-
-  return id;
+  return 1281;  // iptables will drop this later as being too big
 }
 
 
@@ -400,11 +376,30 @@ static int
 cb (struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
     struct nfq_data *nfa, void *data)
 {
-  static u_int32_t id;
-//        id = print_pkt(nfa);
-  printf ("entering callback\n");
-  id = block_pkt (nfa);
-  return nfq_set_verdict (qh, id, NF_DROP, 0, NULL);
+  struct nfqnl_msg_packet_hdr *ph;
+  u_int32_t id = 0;
+  u_int32_t mark;
+
+  if (do_debug)
+    {
+      printf ("do_debug=%d", do_debug);
+      printf ("entering callback\n");
+    }
+  ph = nfq_get_msg_packet_hdr (nfa);
+  if (ph)
+    {
+      id = ntohl (ph->packet_id);
+      if (do_debug)
+	{
+	  printf ("hw_protocol=0x%04x hook=%u id=%u ",
+		  ntohs (ph->hw_protocol), ph->hook, id);
+	}
+    }
+  mark = block_pkt (nfa);
+  if (do_debug) {
+    printf("\nnfq_set_verdict2(qh, id=%d, v=NF_ACCEPT, mark=%d, 0, NULL)\n",id,mark);
+  }
+  return nfq_set_verdict2 (qh, id, NF_ACCEPT, mark, 0, NULL);
 }
 
 
@@ -416,21 +411,20 @@ main (int argc, char **argv)
   struct nfnl_handle *nh;
   int fd;
   int rv;
-  unsigned int queue = 1280;	// -q 
-  unsigned int do_fork = 0;	// -d 
   char *interface;
   char buf[4096] __attribute__ ((aligned));
 
 // Getopt        
   int c;
   int opterr = 0;
-  while ((c = getopt (argc, argv, "dq:")) != -1)
+  while ((c = getopt (argc, argv, "dgq:")) != -1)
     switch (c)
       {
       case 'd':
-	fprintf (stderr, "setting\n");
 	do_fork = 1;
-	fprintf (stderr, "set!\n");
+	break;
+      case 'g':
+	do_debug = 1;
 	break;
       case 'q':
 	queue = strtol (optarg, NULL, 10);
@@ -450,15 +444,21 @@ main (int argc, char **argv)
 
 
 
-  printf ("opening library handle\n");
+
+  if (do_debug)
+    {
+      printf ("opening library handle\n");
+    }
   h = nfq_open ();
   if (!h)
     {
       fprintf (stdout, "error during nfq_open()\n");
       exit (1);
     }
-
-  printf ("unbinding existing nf_queue handler for AF_INET6 (if any)\n");
+  if (do_debug)
+    {
+      printf ("unbinding existing nf_queue handler for AF_INET6 (if any)\n");
+    }
   if (nfq_unbind_pf (h, AF_INET6) < 0)
     {
       fprintf (stdout, "error during nfq_unbind_pf()\n");
@@ -469,14 +469,20 @@ main (int argc, char **argv)
       exit (1);
     }
 
-  printf ("binding nfnetlink_queue as nf_queue handler for AF_INET6\n");
+  if (do_debug)
+    {
+      printf ("binding nfnetlink_queue as nf_queue handler for AF_INET6\n");
+    }
   if (nfq_bind_pf (h, AF_INET6) < 0)
     {
       fprintf (stdout, "error during nfq_bind_pf()\n");
       exit (1);
     }
 
-  printf ("binding this socket to queue '%u'\n", queue);
+  if (do_debug)
+    {
+      printf ("binding this socket to queue '%u'\n", queue);
+    }
   qh = nfq_create_queue (h, queue, &cb, NULL);
   if (!qh)
     {
@@ -485,7 +491,10 @@ main (int argc, char **argv)
     }
 
 
-  printf ("setting copy_packet mode\n");
+  if (do_debug)
+    {
+      printf ("setting copy_packet mode\n");
+    }
   if (nfq_set_mode (qh, NFQNL_COPY_PACKET, 0xffff) < 0)
     {
       fprintf (stdout, "can't set packet_copy mode\n");
@@ -504,9 +513,13 @@ main (int argc, char **argv)
 
   while ((rv = recv (fd, buf, sizeof (buf), 0)) && rv >= 0)
     {
-      printf ("pkt received\n");
+      if (do_debug)
+	{
+	  printf ("pkt received\n");
+	}
       nfq_handle_packet (h, buf, rv);
     }
+
 
   printf ("unbinding from queue 0\n");
   nfq_destroy_queue (qh);
