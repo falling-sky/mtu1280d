@@ -10,6 +10,9 @@ help:
 mtu1280d: mtu1280d.c
 	gcc -o mtu1280d mtu1280d.c -lnetfilter_queue  || ( echo "see README.md for prerequisites" && exit 1 )
 
+test: mtu1280d
+	sudo ./mtu1280d -g
+
 clean:
 	rm -f mtu1280d
 
