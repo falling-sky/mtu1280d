@@ -396,10 +396,11 @@ cb (struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 	}
     }
   mark = block_pkt (nfa);
+  int v = (mark == 1280) ? NF_ACCEPT : NF_DROP;
   if (do_debug) {
-    printf("\nnfq_set_verdict2(qh, id=%d, v=NF_ACCEPT, mark=%d, 0, NULL)\n",id,mark);
+    printf("\nnfq_set_verdict2(qh, id=%d, v=%d, mark=%d, 0, NULL)\n",id,v,mark);
   }
-  return nfq_set_verdict2 (qh, id, NF_ACCEPT, mark, 0, NULL);
+  return nfq_set_verdict2 (qh, id, v, mark, 0, NULL);
 }
 
 
