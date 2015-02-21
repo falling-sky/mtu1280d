@@ -264,7 +264,7 @@ block_pkt (struct nfq_data *tb)
 	{
 	  printf ("Accepting!\n");
 	}
-      return 1280;  // iptables mark to keep the packet
+      return NF_ACCEPT;  // iptables mark to keep the packet
     }
 
 
@@ -368,7 +368,7 @@ block_pkt (struct nfq_data *tb)
     printf ("Send failed\n");
 
 
-  return 1281;  // iptables will drop this later as being too big
+  return NF_DROP;  // iptables will drop this later as being too big
 }
 
 
@@ -395,12 +395,11 @@ cb (struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
 		  ntohs (ph->hw_protocol), ph->hook, id);
 	}
     }
-  mark = block_pkt (nfa);
-  int v = (mark == 1280) ? NF_ACCEPT : NF_DROP;
+  int v = block_pkt (nfa);
   if (do_debug) {
-    printf("\nnfq_set_verdict2(qh, id=%d, v=%d, mark=%d, 0, NULL)\n",id,v,mark);
+    printf("\nnfq_set_verdict(qh, id=%d, v=%d, 0, NULL)\n",id,v);
   }
-  return nfq_set_verdict2 (qh, id, v, mark, 0, NULL);
+  return nfq_set_verdict (qh, id, v, 0, NULL);
 }
 
 
