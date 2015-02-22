@@ -4,8 +4,8 @@ help:
 	@echo "make install - installs to /usr/sbin/mtu1280d"
 	@echo "make upstart - installs, including /etc/init/ script"
 	@echo "make init.d - installs, including /etc/init.d/ and runs chkconfig"
-	@test -d /etc/init && echo "we recommend make upstart (we found /etc/init)" || true
-	@test ! -d /etc/init && echo "we recommend make init.d (we did not find /etc/init)" || true
+	@test -d /etc/init && echo "RECOMMENDATION: make upstart (we found /etc/init)" || true
+	@test ! -d /etc/init && echo "RECOMMENDATION: make init.d (we did not find /etc/init)" || true
 
 mtu1280d: mtu1280d.c
 	gcc -o mtu1280d mtu1280d.c -lnetfilter_queue  || ( echo "see README.md for prerequisites" && exit 1 )
@@ -28,8 +28,7 @@ upstart: install
 
 init.d: install
 	/usr/bin/install -c init.d/mtu1280d /etc/init.d/
-	update-rc.d mtu1280d defaults
-	update-rc.d mtu1280d enable
+	test -x /usr/sbin/update-rc.d && update-rc.d mtu1280d defaults && update-rc.d mtu1280d enable || true
 	@echo "Reminder - start the daemon or reboot; then update your ip6tables."
 	@echo "See the README.md file."
 
@@ -46,9 +45,8 @@ pre-remove:
 	
 force-remove:
 	@echo "Removing any previous installation (including startup scripts) of mtu1280d"
-	rm -fr /usr/sbin/mtu1280d /etc/init/mtu1280d /etc/init.d/mtu1280d
-	update-rc.d mtu1280d remove
-
+	rm -fr /usr/sbin/mtu1280d /etc/init/mtu1280d.conf /etc/init.d/mtu1280d
+	rm -fr /etc/rc*/*mtu1280d* /etc/rc.d/init.d/mtu1280d
 
 remove: pre-remove force-remove
 
