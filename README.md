@@ -28,6 +28,19 @@ mtu1280d will, when it sees a packet > 1280 bytes long,
 both reject the packet as well as generate an ICMPv6 Packet Too Big
 back to the sender.
 
+RECOMMENDATION
+--------------
+Apply this to a dedicated address specifically for triggering mtu 1280.
+Configure your interface via /etc/rc.local, with a command such as this:
+
+```
+ip -6 addr add 2001:db8:1:18::1280 dev eth0 preferred_lft 0
+```
+
+The `preferred_lft 0` is important to mark the address as a deprecated address.
+This means only use the address for incoming connections; not for outgoing.
+
+
 
 REQUIREMENTS
 ------------
