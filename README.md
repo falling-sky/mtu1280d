@@ -21,7 +21,7 @@ large packets destined to the desired IP to the netfilter queue.
 Example rules:
 
 ```
-iptables -t mangle -A PREROUTING -d 2001:db1::1280/128 -j -NFQUEUE --queue-num 1280
+iptables -t mangle -A PREROUTING -d 2001:db1::1280/128 -j NFQUEUE --queue-num 1280
 ```
 
 mtu1280d will, when it sees a packet > 1280 bytes long, 
