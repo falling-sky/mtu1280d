@@ -4,8 +4,10 @@ help:
 	@echo "make install - installs to /usr/sbin/mtu1280d"
 	@echo "make upstart - installs, including /etc/init/ script"
 	@echo "make init.d - installs, including /etc/init.d/ and runs chkconfig"
-	@test -d /etc/init && echo "RECOMMENDATION: make upstart (we found /etc/init)" || true
-	@test ! -d /etc/init && echo "RECOMMENDATION: make init.d (we did not find /etc/init)" || true
+	@echo "make systemd - installs using systemd"
+	@test -d /lib/systemd/system/ && echo "RECOMMENDATION: make systemd (we found /lib/systemd/system/)" || true
+	@test -d /etc/init && test ! -d /lib/systemd/system/  && echo "RECOMMENDATION: make upstart (we found /etc/init)" || true
+	@test ! -d /etc/init && test ! -d /lib/systemd/system/ &&  echo "RECOMMENDATION: make init.d (we did not find /etc/init)" || true
 
 mtu1280d: mtu1280d.c
 	gcc -o mtu1280d mtu1280d.c -lnetfilter_queue  || ( echo "see README.md for prerequisites" && exit 1 )
@@ -17,7 +19,7 @@ clean:
 	rm -f mtu1280d
 
 install: mtu1280d
-	/usr/bin/install -c mtu1280d /usr/sbin/
+	sudo /usr/bin/install -c mtu1280d /usr/sbin/
 
 upstart: install
 	@echo Checking to see if your system uses upstart 
@@ -31,6 +33,12 @@ init.d: install
 	test -x /usr/sbin/update-rc.d && update-rc.d mtu1280d defaults && update-rc.d mtu1280d enable || true
 	@echo "Reminder - start the daemon or reboot; then update your ip6tables."
 	@echo "See the README.md file."
+
+systemd: install
+	sudo cp systemd/mtu1280d.service /lib/systemd/system/mtu1280d.service
+	#sudo systemctl daemon-reload
+	sudo systemctl enable mtu1280d.service
+	sudo systemctl restart mtu1280d.service
 
 
 ################################################################

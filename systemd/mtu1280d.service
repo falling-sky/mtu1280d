@@ -1,0 +1,10 @@
+[Unit] 
+Description=falliny-sky mtu1280 emulator
+
+[Service]
+User=root
+ExecStart=/usr/sbin/mtu1280d
+
+[Install]
+WantedBy=multi-user.target
+Alias=mtu1280d.service
