@@ -36,7 +36,7 @@ init.d: install
 
 systemd: install
 	sudo cp systemd/mtu1280d.service /lib/systemd/system/mtu1280d.service
-	#sudo systemctl daemon-reload
+	-sudo systemctl disable mtu1280d.service
 	sudo systemctl enable mtu1280d.service
 	sudo systemctl restart mtu1280d.service
 
