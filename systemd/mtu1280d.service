@@ -4,6 +4,8 @@ Description=falliny-sky mtu1280 emulator
 [Service]
 User=root
 ExecStart=/usr/sbin/mtu1280d
+Restart=always
+RestartSec=3
 
 [Install]
 WantedBy=multi-user.target
