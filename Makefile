@@ -1,3 +1,5 @@
+DIST_TEST ?= fskyweb@rsync.gigo.com:test/mtu1280d
+DIST_STABLE ?= fskyweb@rsync.gigo.com:stable/mtu1280d
 
 help:
 	@echo "make mtu1280d - just build binary"
@@ -67,17 +69,16 @@ remove: pre-remove force-remove
 
 
 ################################################################
-# Used by Jason for releases via rsync                         #
+# Publishing                                                   #
 ################################################################
+dist-template:
+	rsync * $(DIST_DESTINATION)/. -a --delete -z --exclude "*~"
 
-dist-prep::
-	rm -fr work
-	mkdir -p work
-	rsync -av . work --exclude work --exclude "*~" --exclude /mtu1280d --exclude ".git" --exclude "fsky*tgz"
+dist-test: 
+	make dist-template DIST_DESTINATION=$(DIST_TEST)
 
-dist-test: dist-prep
-	../dist_support/make-dist.pl --stage work --base mtu1280d --branch test
+dist-stable:
+	make dist-template DIST_DESTINATION=$(DIST_STABLE)
 
-dist-stable: dist-prep
-	../dist_support/make-dist.pl --stage work --base mtu1280d --branch stable
 
+dist: dist-stable

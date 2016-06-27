@@ -2,10 +2,6 @@
 // https://austinmarton.wordpress.com/2011/09/14/sending-raw-ethernet-packets-from-a-specific-interface-in-c-on-linux/
 // csum() is borrowed from Austin; and csum_3() is derived from csum().
 
-// Portions of this file derived from libnetfilter_queue-1.0.2/utils/nfqnl_test.c
-// (C) 2005 by Harald Welte <laforge@gnumonks.org>
-// Particularly the bits that interface with netfilter (and the trigger for this being GPLv2 instead of MIT license)
-
 // Code not otherwise borrowed is 
 // (C) 2015 by Jason Fesler <jfesler@gigo.com>
 // Principally: anything to do with ICMPv6 responses
@@ -15,6 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <string.h>
 #include <assert.h>
 #include <netinet/in.h>
@@ -27,7 +24,6 @@
 #include <linux/if_packet.h>
 #include <linux/sockios.h>
 
-// netfilter - lots of stuff pilfered from nfqnl_test.c
 #include <linux/netfilter.h>	/* for NF_ACCEPT */
 #include <libnetfilter_queue/libnetfilter_queue.h>
 
@@ -43,6 +39,18 @@
 unsigned int queue = 1280;	// -q 
 unsigned int do_fork = 0;	// -d
 unsigned int do_debug = 0;	// -g 
+
+
+void
+must (char *s, int i)
+{
+  if (do_debug || (i == 0))
+    printf ("must: %s (value %s)\n", s, i ? "true" : "false");
+  if (!i)
+    exit (1);
+}
+
+
 
 
 typedef struct fullframe
@@ -92,21 +100,16 @@ macaddr_for_interface (int i)
 	  // Use ioctl() to look up interface name and get its MAC address.   
 	  memset (&ifr, 0, sizeof (ifr));
 	  snprintf (ifr.ifr_name, sizeof (ifr.ifr_name), "%s", interface);
-	  if (ioctl (s, SIOCGIFHWADDR, &ifr) < 0)
-	    {
-	      perror ("ioctl() failed to get source MAC address ");
-	      exit (1);
-	    }
+	  must("ioctl() for source MAC address",ioctl (s, SIOCGIFHWADDR, &ifr) >= 0);
 	  memcpy (buffer, ifr.ifr_hwaddr.sa_data, 6);
-
+	  last_i = i;		// Save a lookup later.
 	}
 
     }
   if (do_debug)
     {
       printf ("interface %d mac %02x:%02x:%02x:%02x:%02x:%02x",
-	      i, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4],
-	      buffer[5]);
+	      i, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5]);
     }
 
   return buffer;
@@ -116,6 +119,7 @@ macaddr_for_interface (int i)
 void
 hexdump (char *s, uint8_t * p, int n)
 {
+return;
   int i;
 
   if (!do_debug)
@@ -160,8 +164,7 @@ csum (uint16_t * buf, int count)
 }
 
 uint16_t
-csum_3 (uint16_t * buf1, int count1, uint16_t * buf2, int count2,
-	uint16_t * buf3, int count3)
+csum_3 (uint16_t * buf1, int count1, uint16_t * buf2, int count2, uint16_t * buf3, int count3)
 {
   uint32_t sum;
   for (sum = 0; count1 > 0; count1 -= 2)
@@ -264,7 +267,7 @@ block_pkt (struct nfq_data *tb)
 	{
 	  printf ("Accepting!\n");
 	}
-      return NF_ACCEPT;  // iptables mark to keep the packet
+      return NF_ACCEPT;		// iptables mark to keep the packet
     }
 
 
@@ -275,8 +278,7 @@ block_pkt (struct nfq_data *tb)
   buffer.ether_frame[13] = ETH_P_IPV6 % 256;
 
   // Show the ethernet frame
-  hexdump ("DUMP: ether_frame", buffer.ether_frame,
-	   sizeof (buffer.ether_frame));
+  hexdump ("DUMP: ether_frame", buffer.ether_frame, sizeof (buffer.ether_frame));
 
 
   // Start creating the IPv6 header
@@ -313,8 +315,7 @@ block_pkt (struct nfq_data *tb)
   buffer.icmp6_header[7] = MTU & 0xff;
 
   memcpy (buffer.payload, data, copy_len);
-  hexdump ("ICMP6", buffer.icmp6_header,
-	   sizeof (buffer.icmp6_header) + copy_len);
+  hexdump ("ICMP6", buffer.icmp6_header, sizeof (buffer.icmp6_header) + copy_len);
 
   u_int8_t pseudoheader[40];
   memcpy (pseudoheader, &buffer.ipv6_header[8], 32);
@@ -328,16 +329,14 @@ block_pkt (struct nfq_data *tb)
   pseudoheader[39] = 58;	// ICMPv6 header code
 
   c = csum_3 ((uint16_t *) pseudoheader, sizeof (pseudoheader),
-	      (uint16_t *) buffer.icmp6_header, sizeof (buffer.icmp6_header),
-	      (uint16_t *) buffer.payload, copy_len);
+	      (uint16_t *) buffer.icmp6_header, sizeof (buffer.icmp6_header), (uint16_t *) buffer.payload, copy_len);
   buffer.icmp6_header[2] = c % 256;
   buffer.icmp6_header[3] = c / 256;
 
   hexdump ("PseudoHeader", pseudoheader, sizeof (pseudoheader));
 
 
-  hexdump ("ICMP6", buffer.icmp6_header,
-	   sizeof (buffer.icmp6_header) + copy_len);
+  hexdump ("ICMP6", buffer.icmp6_header, sizeof (buffer.icmp6_header) + copy_len);
 
 
 
@@ -362,43 +361,31 @@ block_pkt (struct nfq_data *tb)
     }
 
   int tx_len = ETHER_SIZE + IPV6HDR_SIZE + ICMP6_SIZE + copy_len;
-  if (sendto
-      (sockfd (), &buffer, tx_len, 0, (struct sockaddr *) &socket_address,
-       sizeof (struct sockaddr_ll)) < 0)
+  if (sendto (sockfd (), &buffer, tx_len, 0, (struct sockaddr *) &socket_address, sizeof (struct sockaddr_ll)) < 0)
     printf ("Send failed\n");
 
 
-  return NF_DROP;  // iptables will drop this later as being too big
+  return NF_DROP;		// iptables will drop this later as being too big
 }
 
 
+
 static int
-cb (struct nfq_q_handle *qh, struct nfgenmsg *nfmsg,
-    struct nfq_data *nfa, void *data)
+cb (struct nfq_q_handle *qh, struct nfgenmsg *nfmsg, struct nfq_data *nfa, void *data)
 {
   struct nfqnl_msg_packet_hdr *ph;
   u_int32_t id = 0;
-  u_int32_t mark;
 
   if (do_debug)
-    {
-      printf ("do_debug=%d", do_debug);
-      printf ("entering callback\n");
-    }
-  ph = nfq_get_msg_packet_hdr (nfa);
-  if (ph)
-    {
-      id = ntohl (ph->packet_id);
-      if (do_debug)
-	{
-	  printf ("hw_protocol=0x%04x hook=%u id=%u ",
-		  ntohs (ph->hw_protocol), ph->hook, id);
-	}
-    }
+    printf ("entering callback\n");
+
+  must ("nfq_get_msg_packet_hdr", (ph = nfq_get_msg_packet_hdr (nfa)) != 0);
+  id = ntohl (ph->packet_id);
+  if (do_debug)
+    printf ("hw_protocol=0x%04x hook=%u id=%u ", ntohs (ph->hw_protocol), ph->hook, id);
   int v = block_pkt (nfa);
-  if (do_debug) {
-    printf("\nnfq_set_verdict(qh, id=%d, v=%d, 0, NULL)\n",id,v);
-  }
+  if (do_debug)
+    printf ("\nnfq_set_verdict(qh, id=%d, v=%d, 0, NULL)\n", id, v);
   return nfq_set_verdict (qh, id, v, 0, NULL);
 }
 
@@ -442,65 +429,15 @@ main (int argc, char **argv)
       }
 
 
+if (getuid () != 0) {
+   fprintf(stdout,"WARNING: Not running as root.  If this fails, either run as root, or grant CAP_NET_ADMIN.\n");
+}
 
-
-
-  if (do_debug)
-    {
-      printf ("opening library handle\n");
-    }
-  h = nfq_open ();
-  if (!h)
-    {
-      fprintf (stdout, "error during nfq_open()\n");
-      exit (1);
-    }
-  if (do_debug)
-    {
-      printf ("unbinding existing nf_queue handler for AF_INET6 (if any)\n");
-    }
-  if (nfq_unbind_pf (h, AF_INET6) < 0)
-    {
-      fprintf (stdout, "error during nfq_unbind_pf()\n");
-      if (getuid () != 0)
-	{
-	  fprintf (stderr, "%s: must be ran as root\n", argv[0]);
-	}
-      exit (1);
-    }
-
-  if (do_debug)
-    {
-      printf ("binding nfnetlink_queue as nf_queue handler for AF_INET6\n");
-    }
-  if (nfq_bind_pf (h, AF_INET6) < 0)
-    {
-      fprintf (stdout, "error during nfq_bind_pf()\n");
-      exit (1);
-    }
-
-  if (do_debug)
-    {
-      printf ("binding this socket to queue '%u'\n", queue);
-    }
-  qh = nfq_create_queue (h, queue, &cb, NULL);
-  if (!qh)
-    {
-      fprintf (stdout, "error during nfq_create_queue()\n");
-      exit (1);
-    }
-
-
-  if (do_debug)
-    {
-      printf ("setting copy_packet mode\n");
-    }
-  if (nfq_set_mode (qh, NFQNL_COPY_PACKET, 0xffff) < 0)
-    {
-      fprintf (stdout, "can't set packet_copy mode\n");
-      exit (1);
-    }
-
+  must ("nfq_open", (h = nfq_open ()) != 0);
+  must ("nfq_unbind_pf", nfq_unbind_pf (h, AF_INET6) >= 0);
+  must ("nfq_bind_pf", nfq_bind_pf (h, AF_INET6) >= 0);
+  must ("nfq_create_queue", (qh = nfq_create_queue (h, queue, &cb, NULL)) != 0);
+  must ("nfq_set_mode", nfq_set_mode (qh, NFQNL_COPY_PACKET, 0xffff) >= 0);
 
   if (do_fork)
     {
@@ -509,30 +446,27 @@ main (int argc, char **argv)
     }
 
 
-  fd = nfq_fd (h);
+  must ("nfq_fd", (fd = nfq_fd (h)) > 0);
 
-  while ((rv = recv (fd, buf, sizeof (buf), 0)) && rv >= 0)
+  while (1)
     {
-      if (do_debug)
+      rv = recv (fd, buf, sizeof (buf), 0);
+      if (rv > 0)
+	nfq_handle_packet (h, buf, rv);
+      if ((rv < 0) && (errno != ENOBUFS))
 	{
-	  printf ("pkt received\n");
+	  perror ("recv:");
+	  exit (1);
 	}
-      nfq_handle_packet (h, buf, rv);
+
+      if (rv == 0)
+	break;
     }
 
-
-  printf ("unbinding from queue 0\n");
+  /* At the end, close the queue. */
+  /* We should not hit this code unless our earlier socket is closed. */
   nfq_destroy_queue (qh);
-
-#ifdef INSANE
-  /* normally, applications SHOULD NOT issue this command, since
-   * it detaches other programs/sockets from AF_INET6, too ! */
-  printf ("unbinding from AF_INET6\n");
-  nfq_unbind_pf (h, AF_INET6);
-#endif
-
-  printf ("closing library handle\n");
-  nfq_close (h);
+  must ("nfq_close", nfq_close (h) == 0);
 
   exit (0);
 }
