@@ -3,6 +3,7 @@ Description=falliny-sky mtu1280 emulator
 
 [Service]
 User=root
+ExecStartPre=/bin/sleep 30
 ExecStart=/usr/sbin/mtu1280d
 Restart=always
 RestartSec=3
