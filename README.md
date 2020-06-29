@@ -41,6 +41,27 @@ The `preferred_lft 0` is important to mark the address as a deprecated address.
 This means only use the address for incoming connections; not for outgoing.
 
 
+UBUNTU 18 NOTES ON NFQUEUE HANGS
+--------------------------------
+
+We're seeing reports of the daemon wedging.  So far, my observations
+on my own ubuntu 18 system are that the recv() calls against the
+iptables nfqueue hang.
+
+The master branch (not pushed to the rsync server) specifically
+adds in a watchdog function; after a configurable numbrer of seconds,
+it will disconnect the nfqueue and reattach.  If it does this
+too many times, it will abort.
+
+You can tune this with these options:
+
+     -w 60    - How long we can go without seeing a packet
+     -W 1440  - How many times we can reset the socket without seeing a pocket
+
+For most of you, I'm monitoring your web sites. At minimum I should
+be hitting your mirror once every 30 minutes; somehow you should
+see and accept traffic in the time above (1 day!).
+
 
 REQUIREMENTS
 ------------
