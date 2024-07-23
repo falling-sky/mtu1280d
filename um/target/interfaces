@@ -1,0 +1,10 @@
+auto vec0
+# Uncomment following lines and set them up with your values.
+#iface vec0 inet static
+ #address
+ #netmask
+ #gateway
+#iface vec0 inet6 static
+ #address
+ #netmask
+ #gateway # will use host's RA if left unset

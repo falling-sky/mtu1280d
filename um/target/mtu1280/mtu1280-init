@@ -1,0 +1,9 @@
+#!/sbin/openrc-run
+
+depend() {
+	need net
+}
+
+command="/usr/local/libexec/mtu1280/mtu1280-init.sh"
+command_args=
+pidfile="/run/mtu1280-init.pid"

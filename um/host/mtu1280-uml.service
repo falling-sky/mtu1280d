@@ -1,0 +1,11 @@
+[Unit]
+Description=mtu1280 UML process
+After=local-fs.target network.target radvd.service
+
+[Service]
+EnvironmentFile=/etc/mtu1280/mtu1280-uml.env
+ExecStart=/usr/local/bin/linux $MTU1280_UML_OPTS
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
