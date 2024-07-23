@@ -1,0 +1,15 @@
+.PHONY: uninstall
+
+install:
+	install -b -D mtu1280-netns.env /etc/mtu1280/mtu1280-netns.env
+	install -b -D mtu1280-netns-httpd.override.conf /etc/systemd/system/httpd.service.d/mtu1280-netns-httpd.override.conf
+	install -D mtu1280-netns.service /usr/local/lib/systemd/system/mtu1280-netns.service
+	install -D mtu1280-netns.sh /usr/local/libexec/mtu1280/mtu1280-netns.sh
+	systemctl daemon-reload
+
+uninstall:
+	rm -f \
+		/etc/systemd/system/httpd.service.d/mtu1280-netns-httpd.override.conf \
+		/usr/local/lib/systemd/system/mtu1280-netns.service \
+		/usr/local/libexec/mtu1280/mtu1280-netns.sh
+	systemctl daemon-reload
