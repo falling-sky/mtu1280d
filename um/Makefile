@@ -14,7 +14,7 @@ first: build/linux-$(KVER)_mtu1280/linux build/alpine-minirootfs-$(ALPINE_VER).t
 rootimg: build/root.img
 rebuild-rootimg: clean-rootimg rootimg
 
-include /etc/mtu1280/mtu1280-uml.env
+-include /etc/mtu1280/mtu1280-uml.env
 run-uml:
 	/usr/local/bin/linux ${MTU1280_UML_OPTS} ${MTU1280_UML_OPTS_EXTRA}
 
@@ -31,7 +31,8 @@ install: build/linux-$(KVER)_mtu1280/linux build/root.img
 	mkdir -p /etc/mtu1280
 	install -o 0 -g 0 -m 755 -Z build/linux-$(KVER)_mtu1280/linux /usr/local/bin
 	install -b -o 0 -g 0 -m 644 -Z build/root.img /var/lib/mtu1280
-	install -b -o 0 -g 0 -m 644 -Z host/mtu1280-uml.env /etc/mtu1280
+	test -f /etc/mtu1280/mtu1280-uml.env || \
+		install -b -o 0 -g 0 -m 644 -Z host/mtu1280-uml.env /etc/mtu1280
 	install -o 0 -g 0 -m 644 -Z host/mtu1280-uml.service /usr/local/lib/systemd/system
 	install -o 0 -g 0 -m 755 -Z host/dispatcher.d/mtu1280-hook /etc/NetworkManager/dispatcher.d
 	install -o 0 -g 0 -m 644 -Z host/sysctl.d/10-mtu1280-forwarding.conf /etc/sysctl.d
