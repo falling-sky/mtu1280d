@@ -6,6 +6,7 @@ After=network.target
 [Service]
 Type=notify
 EnvironmentFile=/etc/mtu1280/mtu1280-netns.env
+ExecStartPre=-/usr/local/libexec/mtu1280/mtu1280-netns.sh rmns_q
 ExecStart=/usr/local/libexec/mtu1280/mtu1280-netns.sh daemon
 KillSignal=SIGCONT
 
