@@ -64,10 +64,6 @@ mkns () {
 	do_make_ns mtu1280-b
 	do_make_ns mtu1280-c
 
-	# disable PMTU caching in mtu1280-c
-	ip netns exec mtu1280-c sysctl -qw "net.ipv4.route.mtu_expires=0"
-	ip netns exec mtu1280-c sysctl -qw "net.ipv6.route.mtu_expires=0"
-
 	# link up system default ns -> mtu1280-a
 	ip link add veth-mtu1280-a type veth peer name veth-mtu1280-gw netns mtu1280-a
 	no_offload veth-mtu1280-a
@@ -135,6 +131,10 @@ mkns () {
 	# static route from mtu1280-b to inner
 	ll=$(get_ll_addr veth-mtu1280-b mtu1280-c)
 	safe_run "$MTU1280NS_ADDR6_C" ip -n mtu1280-b -6 route add "$MTU1280NS_ADDR6_C" dev veth-mtu1280-c via $ll
+
+	# disable PMTU caching in mtu1280-c
+	ip netns exec mtu1280-c sysctl -qw "net.ipv4.route.mtu_expires=0" || true
+	ip netns exec mtu1280-c sysctl -qw "net.ipv6.route.mtu_expires=0" || true
 }
 
 rmns () {

@@ -67,7 +67,7 @@ vi mtu1280-netns.env
 
 Set `MTU1280NS_ADDR6_*` to the addresses of the routers. For IPv4, set
 `MTU1280NS_ADDR4_*` as well. If you plan to use private IPv4 addresses, remember
-to turn masquerade on and set port forwarding.
+to set port forwarding.
 
 - Set `MTU1280NS_NO_OFFLOAD` to "true" to disable offloading features that
   can interfere with the packet capture result when debugging
