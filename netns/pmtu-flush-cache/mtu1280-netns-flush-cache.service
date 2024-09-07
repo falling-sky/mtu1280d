@@ -1,0 +1,10 @@
+[Unit]
+Description=Flush pmtu cache in mtu1280-c netns every second
+Requisite=mtu1280-netns.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/mtu1280-netns-flush-cache.sh
+
+[Install]
+WantedBy=multi-user.target
