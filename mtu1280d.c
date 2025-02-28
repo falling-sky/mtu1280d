@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/ip.h>
@@ -81,7 +82,7 @@ typedef struct fullframe {
 int
 sockfd(void)
 {
-	static		sock = 0;
+	static int sock = 0;
 	if (!sock) {
 		sock = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW);
 	};
