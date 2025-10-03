@@ -89,6 +89,7 @@ sockfd(void)
 	if (sock == -1) {
 		perror("socket");
 	};
+	return sock;
 }
 
 uint8_t        *
