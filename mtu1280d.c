@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <netinet/ip.h>
@@ -47,12 +48,12 @@ unsigned int	do_debug = 0;	/* -g */
 unsigned int    do_watchdog = 0; /* -w */
 unsigned int    do_watchdog_times = 10; /* -W */
 
-void must(char *s, int i)
+void must(char *label, int successful)
 {
-	if (i == 0)
-		printf("must: %s (value %s)\n", s, i ? "true" : "false");
-	if (!i)
+	if (!successful) {
+		fprintf(stderr, "must: %s failed: %s\n", label, strerror(errno));
 		exit(1);
+	}
 }
 
 
@@ -81,13 +82,14 @@ typedef struct fullframe {
 int
 sockfd(void)
 {
-	static		sock = 0;
+	static int sock = 0;
 	if (!sock) {
 		sock = socket(AF_PACKET, SOCK_RAW, IPPROTO_RAW);
 	};
 	if (sock == -1) {
 		perror("socket");
 	};
+	return sock;
 }
 
 uint8_t        *
@@ -106,7 +108,7 @@ macaddr_for_interface(int i)
 		struct ifreq	ifr;
 
 		if (interface) {
-			debugf("Looked up %d, found %s ", i, interface);
+			debugf("Looked up %d, found %s\n", i, interface);
 
 			/*
 			 * Use ioctl() to look up interface name and get its
@@ -120,7 +122,7 @@ macaddr_for_interface(int i)
 		};
 
 	};
-	debugf("interface %d mac %02x:%02x:%02x:%02x:%02x:%02x",
+	debugf("Interface %d mac %02x:%02x:%02x:%02x:%02x:%02x\n",
 	i, buffer[0], buffer[1], buffer[2], buffer[3], buffer[4], buffer[5]);
 
 	return buffer;
@@ -345,7 +347,7 @@ block_pkt(struct nfq_data *tb)
 
 	int		tx_len = ETHER_SIZE + IPV6HDR_SIZE + ICMP6_SIZE + copy_len;
 	if (sendto(sockfd(), &buffer, tx_len, 0, (struct sockaddr *)&socket_address, sizeof(struct sockaddr_ll)) < 0)
-		printf("Send failed\n");
+		perror("sendto() failed");
 
 	debugf("trace during reject: returning NF_DROP\n");
 
