@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ "$2" != "up" ]; then
+	exit
+fi
+
+# Accept RA even if forwarding is enabled and the address is manually set
+sysctl -w "net.ipv6.conf.$1.accept_ra = 2"
+# UML net device can't handle GRO and GSO which are enabled on the CSP instances
+ethtool -K $1 \
+	tcp-segmentation-offload off \
+	generic-receive-offload off \
+	generic-segmentation-offload off
